@@ -34,7 +34,11 @@ ax.set_aspect("equal")
 ax.axis("off")
 
 
+SCENE = []
+
+
 def box(x, y, w, h, text, kind, fs=FS, bold=False, ls="-"):
+    SCENE.append(dict(t="box", x=x, y=y, w=w, h=h, text=text, kind=kind, fs=fs, bold=bold, dashed=ls != "-"))
     fc, ec = COL[kind]
     ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0,rounding_size=1.2",
                                 fc=fc, ec=ec, lw=0.7, ls=ls, zorder=2))
@@ -44,6 +48,7 @@ def box(x, y, w, h, text, kind, fs=FS, bold=False, ls="-"):
 
 
 def path(points, dashed=False, head=True, color=LINE):
+    SCENE.append(dict(t="path", pts=list(points), dashed=dashed, head=head))
     ls = (0, (2.5, 1.6)) if dashed else "-"
     for (x0, y0), (x1, y1) in zip(points[:-2], points[1:-1]):
         ax.add_line(Line2D([x0, x1], [y0, y1], color=color, lw=0.7, ls=ls, zorder=1,
@@ -54,19 +59,28 @@ def path(points, dashed=False, head=True, color=LINE):
                                  shrinkA=0, shrinkB=0, zorder=1))
 
 
-def label(x, y, text, fs=6.0, ha="center", va="center", style="normal", rot=0, color="#222222"):
-    ax.text(x, y, text, ha=ha, va=va, fontsize=fs, style=style, rotation=rot, color=color, zorder=4)
+def label(x, y, text, fs=6.0, ha="center", va="center", style="normal", rot=0, color="#222222", bold=False):
+    SCENE.append(dict(t="text", x=x, y=y, text=text, fs=fs, ha=ha, va=va, italic=style == "italic", rot=rot,
+                      color=color, bold=bold))
+    return ax.text(x, y, text, ha=ha, va=va, fontsize=fs, style=style, rotation=rot, color=color, zorder=4,
+                   fontweight="bold" if bold else "normal")
+
+
+def seg(points):
+    path(points, head=False)
 
 
 def plus(cx, cy, r=2.0):
+    SCENE.append(dict(t="plus", cx=cx, cy=cy, r=r))
     ax.add_patch(Circle((cx, cy), r, fc="white", ec=LINE, lw=0.7, zorder=3))
     ax.add_line(Line2D([cx - r * 0.6, cx + r * 0.6], [cy, cy], color=LINE, lw=0.7, zorder=4))
     ax.add_line(Line2D([cx, cx], [cy - r * 0.6, cy + r * 0.6], color=LINE, lw=0.7, zorder=4))
 
 
 def panel_frame(x, y, w, h, title):
+    SCENE.append(dict(t="frame", x=x, y=y, w=w, h=h))
     ax.add_patch(Rectangle((x, y), w, h, fc="none", ec="#C8C8C8", lw=0.5, zorder=0))
-    ax.text(x + 1.5, y + h - 1.5, title, ha="left", va="top", fontsize=7.6, fontweight="bold")
+    label(x + 1.5, y + h - 1.5, title, ha="left", va="top", fs=7.6, color="#000000", bold=True)
 
 
 # ---------------------------------------------------------------- panel (a)
@@ -98,8 +112,8 @@ path([(menc["r"], menc["cy"]), (fus["l"], menc["cy"])])
 label(88, 153.0, r"$M$: $N_m\times d_g$", fs=5.8)
 
 bus_x = 128
-ax.add_line(Line2D([fus["r"], bus_x], [165.5, 165.5], color=LINE, lw=0.7, zorder=1))
-ax.add_line(Line2D([bus_x, bus_x], [htag["cy"], dec["cy"]], color=LINE, lw=0.7, zorder=1))
+seg([(fus["r"], 165.5), (bus_x, 165.5)])
+seg([(bus_x, htag["cy"]), (bus_x, dec["cy"])])
 for tgt in (dec, pool, htag):
     path([(bus_x, tgt["cy"]), (tgt["l"], tgt["cy"])])
 label(bus_x + 1.2, 158.0, r"$H$: $N\times d_g$", fs=5.8, ha="left")
@@ -111,8 +125,8 @@ label(151, pool["t"] + 1.8, r"parcel masks $A$", fs=5.6, style="italic", ha="cen
 path([(ax_in["cx"], ax_in["b"]), (ax_in["cx"], ev["cy"]), (ev["l"], ev["cy"])])
 label(ax_in["cx"] + 1.2, 140.5, "observed", fs=5.6, ha="left", style="italic")
 rb = 179.5
-ax.add_line(Line2D([dec["r"], rb], [dec["cy"], dec["cy"]], color=LINE, lw=0.7, zorder=1))
-ax.add_line(Line2D([pool["r"], rb], [pool["cy"], pool["cy"]], color=LINE, lw=0.7, zorder=1))
+seg([(dec["r"], dec["cy"]), (rb, dec["cy"])])
+seg([(pool["r"], pool["cy"]), (rb, pool["cy"])])
 path([(rb, dec["cy"]), (rb, ev["cy"]), (ev["r"], ev["cy"])])
 label(rb - 1.2, 141.5, "predicted", fs=5.6, ha="right", style="italic")
 
@@ -170,8 +184,7 @@ path([(cx, p4 + 2.0), (cx, 113.5)])
 
 rx = cx + bw / 2 + 4
 for y0, y1 in ((p1 + 2.8, p2), (p2 + 2.8, p3), (p3 + 2.8, p4)):
-    ax.add_line(Line2D([cx, rx], [y0, y0], color=LINE, lw=0.7, zorder=1))
-    ax.add_line(Line2D([rx, rx], [y0, y1], color=LINE, lw=0.7, zorder=1))
+    seg([(cx, y0), (rx, y0), (rx, y1)])
     path([(rx, y1), (cx + 2.0, y1)])
 label(rx + 1.2, 70, "residual", fs=5.6, style="italic", ha="left", rot=90)
 
@@ -195,7 +208,7 @@ kb = box(143, 76, 34, 8, "Knowledge base\nand retriever", "aux")
 ser = box(143, 60, 34, 8, "Serialize + tokenize", "lang")
 tb = 180
 for b_ in (qq, eb, kb):
-    ax.add_line(Line2D([b_["r"], tb], [b_["cy"], b_["cy"]], color=LINE, lw=0.7, zorder=1))
+    seg([(b_["r"], b_["cy"]), (tb, b_["cy"])])
 path([(tb, qq["cy"]), (tb, ser["cy"]), (ser["r"], ser["cy"])])
 
 llm = box(95, 39, 82, 13, "Pretrained language decoder\n(causal self-attention + FFN; optional LoRA adaptation)\n"
@@ -219,17 +232,22 @@ mm_per_px = W_MM / fig.bbox.width
 x = 4
 for kind, text in items:
     fc, ec = COL[kind]
+    SCENE.append(dict(t="swatch", x=x, y=3, w=3.2, h=3.2, kind=kind))
     ax.add_patch(Rectangle((x, 3), 3.2, 3.2, fc=fc, ec=ec, lw=0.6))
-    t = ax.text(x + 4.2, 4.6, text, fontsize=5.8, va="center")
+    t = label(x + 4.2, 4.6, text, fs=5.8, ha="left", color="#000000")
     x += 4.2 + t.get_window_extent(renderer).width * mm_per_px + 3.5
 plus(x + 1.6, 4.6, r=1.6)
-t = ax.text(x + 4.2, 4.6, "addition (residual)", fontsize=5.8, va="center")
+t = label(x + 4.2, 4.6, "addition (residual)", fs=5.8, ha="left", color="#000000")
 x += 4.2 + t.get_window_extent(renderer).width * mm_per_px + 3.5
-ax.add_line(Line2D([x, x + 6], [4.6, 4.6], color=LINE, lw=0.7, ls=(0, (2.5, 1.6))))
-ax.text(x + 7, 4.6, "mask", fontsize=5.8, va="center")
+path([(x, 4.6), (x + 6, 4.6)], dashed=True, head=False)
+label(x + 7, 4.6, "mask", fs=5.8, ha="left", color="#000000")
 
 for ext in ("pdf", "png", "svg"):
     fig.savefig(f"/tmp/v18/Fig3_CroplandGPT_architecture.{ext}", dpi=600 if ext == "png" else None)
 fig.savefig("/tmp/v18/Fig3_CroplandGPT_architecture_300dpi.png", dpi=300)
 fig.savefig("/tmp/v18/Fig3_preview.png", dpi=150)
+
+from visio_writer import write_vsdx
+
+write_vsdx(SCENE, COL, W_MM, H_MM, "/tmp/v18/Fig3_CroplandGPT_architecture.vsdx")
 print("ok")
