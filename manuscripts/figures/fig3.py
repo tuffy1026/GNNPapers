@@ -64,10 +64,6 @@ def plus(cx, cy, r=2.0):
     ax.add_line(Line2D([cx, cx], [cy - r * 0.6, cy + r * 0.6], color=LINE, lw=0.7, zorder=4))
 
 
-def dot(x, y):
-    ax.add_patch(Circle((x, y), 0.6, fc=LINE, ec=LINE, zorder=4))
-
-
 def panel_frame(x, y, w, h, title):
     ax.add_patch(Rectangle((x, y), w, h, fc="none", ec="#C8C8C8", lw=0.5, zorder=0))
     ax.text(x + 1.5, y + h - 1.5, title, ha="left", va="top", fontsize=7.6, fontweight="bold")
@@ -104,7 +100,6 @@ label(88, 153.0, r"$M$: $N_m\times d_g$", fs=5.8)
 bus_x = 128
 ax.add_line(Line2D([fus["r"], bus_x], [165.5, 165.5], color=LINE, lw=0.7, zorder=1))
 ax.add_line(Line2D([bus_x, bus_x], [htag["cy"], dec["cy"]], color=LINE, lw=0.7, zorder=1))
-dot(bus_x, 165.5)
 for tgt in (dec, pool, htag):
     path([(bus_x, tgt["cy"]), (tgt["l"], tgt["cy"])])
 label(bus_x + 1.2, 158.0, r"$H$: $N\times d_g$", fs=5.8, ha="left")
@@ -118,7 +113,6 @@ label(ax_in["cx"] + 1.2, 140.5, "observed", fs=5.6, ha="left", style="italic")
 rb = 179.5
 ax.add_line(Line2D([dec["r"], rb], [dec["cy"], dec["cy"]], color=LINE, lw=0.7, zorder=1))
 ax.add_line(Line2D([pool["r"], rb], [pool["cy"], pool["cy"]], color=LINE, lw=0.7, zorder=1))
-dot(rb, pool["cy"])
 path([(rb, dec["cy"]), (rb, ev["cy"]), (ev["r"], ev["cy"])])
 label(rb - 1.2, 141.5, "predicted", fs=5.6, ha="right", style="italic")
 
@@ -176,7 +170,6 @@ path([(cx, p4 + 2.0), (cx, 113.5)])
 
 rx = cx + bw / 2 + 4
 for y0, y1 in ((p1 + 2.8, p2), (p2 + 2.8, p3), (p3 + 2.8, p4)):
-    dot(cx, y0)
     ax.add_line(Line2D([cx, rx], [y0, y0], color=LINE, lw=0.7, zorder=1))
     ax.add_line(Line2D([rx, rx], [y0, y1], color=LINE, lw=0.7, zorder=1))
     path([(rx, y1), (cx + 2.0, y1)])
@@ -203,8 +196,6 @@ ser = box(143, 60, 34, 8, "Serialize + tokenize", "lang")
 tb = 180
 for b_ in (qq, eb, kb):
     ax.add_line(Line2D([b_["r"], tb], [b_["cy"], b_["cy"]], color=LINE, lw=0.7, zorder=1))
-dot(tb, eb["cy"])
-dot(tb, kb["cy"])
 path([(tb, qq["cy"]), (tb, ser["cy"]), (ser["r"], ser["cy"])])
 
 llm = box(95, 39, 82, 13, "Pretrained language decoder\n(causal self-attention + FFN; optional LoRA adaptation)\n"
@@ -221,7 +212,7 @@ outb = box(95, 12, 82, 11, "Scoped statements indexed by D1–D6 × L1–L3\nwit
 path([(chk["cx"], chk["b"]), (chk["cx"], outb["t"])])
 
 # ---------------------------------------------------------------- legend
-items = [("eo", "Earth observation and spatial features"), ("aux", "Auxiliary data and evidence"),
+items = [("eo", "EO and spatial features"), ("aux", "Auxiliary data and evidence"),
          ("att", "Attention and fusion"), ("lang", "Language modules"), ("out", "Queries, masks and outputs")]
 renderer = fig.canvas.get_renderer()
 mm_per_px = W_MM / fig.bbox.width
@@ -231,8 +222,11 @@ for kind, text in items:
     ax.add_patch(Rectangle((x, 3), 3.2, 3.2, fc=fc, ec=ec, lw=0.6))
     t = ax.text(x + 4.2, 4.6, text, fontsize=5.8, va="center")
     x += 4.2 + t.get_window_extent(renderer).width * mm_per_px + 3.5
+plus(x + 1.6, 4.6, r=1.6)
+t = ax.text(x + 4.2, 4.6, "addition (residual)", fontsize=5.8, va="center")
+x += 4.2 + t.get_window_extent(renderer).width * mm_per_px + 3.5
 ax.add_line(Line2D([x, x + 6], [4.6, 4.6], color=LINE, lw=0.7, ls=(0, (2.5, 1.6))))
-ax.text(x + 7, 4.6, "mask or verification", fontsize=5.8, va="center")
+ax.text(x + 7, 4.6, "mask", fontsize=5.8, va="center")
 
 for ext in ("pdf", "png", "svg"):
     fig.savefig(f"/tmp/v18/Fig3_CroplandGPT_architecture.{ext}", dpi=600 if ext == "png" else None)
