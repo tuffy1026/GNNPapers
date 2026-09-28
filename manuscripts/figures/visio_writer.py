@@ -143,7 +143,7 @@ def est_text_size(runs, fs):
     return w, h
 
 
-def write_vsdx(scene, col, w_mm, h_mm, out):
+def write_vsdx(scene, col, w_mm, h_mm, out, page_name="Fig. 3"):
     page = Page()
     order = {"frame": 0, "path": 1, "box": 2, "swatch": 2, "plus": 3, "text": 4}
     for it in sorted(scene, key=lambda d: order[d["t"]]):
@@ -175,7 +175,8 @@ def write_vsdx(scene, col, w_mm, h_mm, out):
             geom = ("<Section N='Geometry' IX='0'>" + cell("NoFill", 1) + cell("NoLine", 0) + cell("NoShow", 0)
                     + cell("NoSnap", 0) + "".join(rows) + "</Section>")
             page.add("Arrow" if it["head"] else "Line", x0, y0, w, h,
-                     line_cells(LINE, 0.7, it["dashed"], end_arrow=ARROW if it["head"] else 0), geom)
+                     line_cells(it.get("color", LINE), it.get("lw", 0.7), it["dashed"],
+                                end_arrow=ARROW if it["head"] else 0), geom)
         elif t == "plus":
             r = it["r"]
             d = 2 * r
@@ -225,7 +226,7 @@ def write_vsdx(scene, col, w_mm, h_mm, out):
     pages = re.sub(r"<Cell N='PageHeight' V='[^']*'/>", f"<Cell N='PageHeight' V='{f(ph)}'/>", pages)
     pages = re.sub(r"ViewCenterX='[^']*'", f"ViewCenterX='{f(pw / 2)}'", pages)
     pages = re.sub(r"ViewCenterY='[^']*'", f"ViewCenterY='{f(ph / 2)}'", pages)
-    pages = pages.replace("NameU='Page-1' Name='Page-1'", "NameU='Fig. 3' Name='Fig. 3'")
+    pages = pages.replace("NameU='Page-1' Name='Page-1'", f"NameU='{page_name}' Name='{page_name}'")
     open(f"{work}/visio/pages/pages.xml", "w", encoding="utf-8").write(pages)
 
     win = open(f"{work}/visio/windows.xml", encoding="utf-8").read()

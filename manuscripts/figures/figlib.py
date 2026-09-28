@@ -38,8 +38,11 @@ class Canvas:
         ax.set_aspect("equal")
         ax.axis("off")
         self.ax = ax
+        self.scene = []
 
     def box(self, x, y, w, h, text, kind, fs=FS, bold=False, ls="-", align="center", lw=0.7):
+        self.scene.append(dict(t="box", x=x, y=y, w=w, h=h, text=text, kind=kind, fs=fs, bold=bold,
+                               dashed=ls != "-"))
         fc, ec = COL[kind]
         self.ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0,rounding_size=1.2",
                                          fc=fc, ec=ec, lw=lw, ls=ls, zorder=2))
@@ -50,18 +53,23 @@ class Canvas:
         return dict(l=x, r=x + w, b=y, t=y + h, cx=x + w / 2, cy=y + h / 2)
 
     def line(self, pts, dashed=False, color=LINE, lw=0.7, z=1):
+        self.scene.append(dict(t="path", pts=list(pts), dashed=dashed, head=False, color=color, lw=lw))
         xs, ys = zip(*pts)
         self.ax.add_line(Line2D(xs, ys, color=color, lw=lw, ls=DASH if dashed else "-", zorder=z))
 
     def path(self, pts, dashed=False, color=LINE):
+        self.scene.append(dict(t="path", pts=list(pts), dashed=dashed, head=True, color=color, lw=0.7))
         if len(pts) > 2:
-            self.line(pts[:-1], dashed, color)
+            xs, ys = zip(*pts[:-1])
+            self.ax.add_line(Line2D(xs, ys, color=color, lw=0.7, ls=DASH if dashed else "-", zorder=1))
         self.ax.add_patch(FancyArrowPatch(pts[-2], pts[-1], arrowstyle="-|>,head_length=1.6,head_width=0.9",
                                           mutation_scale=1, color=color, lw=0.7,
                                           ls=DASH if dashed else "-", shrinkA=0, shrinkB=0, zorder=1))
 
     def label(self, x, y, text, fs=6.0, ha="center", va="center", style="normal", rot=0,
               color="#222222", bold=False):
+        self.scene.append(dict(t="text", x=x, y=y, text=text, fs=fs, ha=ha, va=va, italic=style == "italic",
+                               rot=rot, color=color, bold=bold))
         return self.ax.text(x, y, text, ha=ha, va=va, fontsize=fs, style=style, rotation=rot, color=color,
                             zorder=4, fontweight="bold" if bold else "normal", linespacing=1.25)
 
@@ -69,9 +77,10 @@ class Canvas:
         self.ax.add_patch(Circle((x, y), 0.6, fc=LINE, ec=LINE, zorder=4))
 
     def frame(self, x, y, w, h, title=None, fc="none"):
+        self.scene.append(dict(t="frame", x=x, y=y, w=w, h=h))
         self.ax.add_patch(Rectangle((x, y), w, h, fc=fc, ec="#C8C8C8", lw=0.5, zorder=0))
         if title:
-            self.ax.text(x + 1.5, y + h - 1.5, title, ha="left", va="top", fontsize=7.6, fontweight="bold")
+            self.label(x + 1.5, y + h - 1.5, title, fs=7.6, ha="left", va="top", color="#000000", bold=True)
 
     def rect(self, x, y, w, h, fc, ec="none", lw=0.5, z=2):
         self.ax.add_patch(Rectangle((x, y), w, h, fc=fc, ec=ec, lw=lw, zorder=z))
@@ -84,12 +93,13 @@ class Canvas:
         mm_per_px = self.w / self.fig.bbox.width
         for kind, text in items:
             fc, ec = COL[kind]
+            self.scene.append(dict(t="swatch", x=x, y=y - 1.6, w=3.2, h=3.2, kind=kind))
             self.ax.add_patch(Rectangle((x, y - 1.6), 3.2, 3.2, fc=fc, ec=ec, lw=0.6))
-            t = self.ax.text(x + 4.2, y, text, fontsize=5.8, va="center")
+            t = self.label(x + 4.2, y, text, fs=5.8, ha="left", color="#000000")
             x += 4.2 + t.get_window_extent(renderer).width * mm_per_px + 5.0
         if dashed_label:
             self.line([(x, y), (x + 6, y)], dashed=True)
-            self.ax.text(x + 7, y, dashed_label, fontsize=5.8, va="center")
+            self.label(x + 7, y, dashed_label, fs=5.8, ha="left", color="#000000")
 
     def save(self, stem):
         for ext in ("pdf", "svg"):
@@ -97,3 +107,8 @@ class Canvas:
         self.fig.savefig(f"/tmp/v18/{stem}.png", dpi=600)
         self.fig.savefig(f"/tmp/v18/{stem}_300dpi.png", dpi=300)
         self.fig.savefig(f"/tmp/v18/{stem}_preview.png", dpi=150)
+
+    def save_vsdx(self, stem, page_name):
+        from visio_writer import write_vsdx
+
+        write_vsdx(self.scene, COL, self.w, self.h, f"/tmp/v18/{stem}.vsdx", page_name=page_name)
