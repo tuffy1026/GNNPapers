@@ -145,9 +145,40 @@ def est_text_size(runs, fs):
 
 def write_vsdx(scene, col, w_mm, h_mm, out, page_name="Fig. 3"):
     page = Page()
-    order = {"frame": 0, "path": 1, "box": 2, "swatch": 2, "plus": 3, "text": 4}
-    for it in sorted(scene, key=lambda d: order[d["t"]]):
+    order = {"lane": -1, "frame": 0, "path": 1, "box": 2, "swatch": 2, "rbox": 2, "poly": 2, "plus": 3, "text": 4}
+    for it in sorted(scene, key=lambda d: (order[d["t"]], d.get("z", 0))):
         t = it["t"]
+        if t in ("rbox", "lane"):
+            tb = sec = txt = ""
+            if it.get("text"):
+                runs = math_runs(it["text"], italic=it.get("italic", False), bold=it.get("bold", False))
+                tb, sec, txt = text_xml(runs, it["fs"], it.get("color", "#000000"), margins_pt=1.0)
+            lc = line_cells(it["ec"] or "#FFFFFF", it["lw"] if it["ec"] else 0.0, fill=it["fc"],
+                            rounding_mm=it["r"])
+            if not it["ec"]:
+                lc = lc.replace("<Cell N='LinePattern' V='1'/>", "<Cell N='LinePattern' V='0'/>")
+            page.add(it.get("name", "Card"), it["x"], it["y"], it["w"], it["h"], lc + tb,
+                     rect_geometry(no_line=not it["ec"]) + sec, txt)
+            continue
+        if t == "poly":
+            pts = it["pts"]
+            xs, ys = [p[0] for p in pts], [p[1] for p in pts]
+            x0, y0 = min(xs), min(ys)
+            w, h = max(xs) - x0, max(ys) - y0
+            rows = []
+            for k, (px, py) in enumerate(list(pts) + [pts[0]]):
+                rt = "MoveTo" if k == 0 else "LineTo"
+                rows.append(f"<Row T='{rt}' IX='{k + 1}'>" + cell("X", f(inch(px - x0)))
+                            + cell("Y", f(inch(py - y0))) + "</Row>")
+            geom = ("<Section N='Geometry' IX='0'>" + cell("NoFill", 0) + cell("NoLine", int(not it["ec"]))
+                    + cell("NoShow", 0) + cell("NoSnap", 0) + "".join(rows) + "</Section>")
+            tb = sec = txt = ""
+            if it.get("text"):
+                runs = math_runs(it["text"], bold=it.get("bold", False))
+                tb, sec, txt = text_xml(runs, it["fs"], it.get("color", "#000000"))
+            page.add(it.get("name", "Shape"), x0, y0, w, h,
+                     line_cells(it["ec"] or "#FFFFFF", it["lw"], fill=it["fc"]) + tb, geom + sec, txt)
+            continue
         if t == "frame":
             page.add("Panel frame", it["x"], it["y"], it["w"], it["h"],
                      line_cells("#C8C8C8", 0.5), rect_geometry(no_fill=True))
